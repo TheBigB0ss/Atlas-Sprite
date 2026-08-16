@@ -104,7 +104,8 @@ func draw_symbol(element, layer, index, elementTransform, key = "atlas"):
 		);
 		
 	var finalTrans = elementTransform*trans;
-	var symbol_frame = 0;
+	
+	var symbol_frame = int(elementData.get("FF", 0));
 	var symbol_total_frames = 0;
 	
 	for l in symbolID["TL"].get("L", []):
