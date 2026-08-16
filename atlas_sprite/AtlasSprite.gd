@@ -82,10 +82,9 @@ func reload():
 	notify_property_list_changed();
 	
 func draw_symbol(element, layer, index, elementTransform, key = "atlas"):
-	
 	var elementData = element.get("SI", element.get("ASI"));
 	var symbolID = symbol_data[elementData["SN"]];
-	var keyID = str(key, "--", symbolID["SN"], "--", layer, "--", index);
+	var keyID = "%s/%s/%d"%[key, symbolID["SN"], index];
 	
 	var trans = Transform2D.IDENTITY;
 	if elementData.has("M3D"):
@@ -105,29 +104,35 @@ func draw_symbol(element, layer, index, elementTransform, key = "atlas"):
 		);
 		
 	var finalTrans = elementTransform*trans;
-	
-	#if elementData.has("TRP"):
-	#	var m2 = elementData["TRP"];
-	#	finalTrans.origin += Vector2(m2["x"], m2["y"]);
-		
 	var symbol_frame = 0;
 	var symbol_total_frames = 0;
 	
 	for l in symbolID["TL"].get("L", []):
 		for fr in l.get("FR", []):
-			symbol_total_frames = max(symbol_total_frames, fr["I"] + fr["DU"]);
+			symbol_total_frames = max(symbol_total_frames, int(fr["I"]) + int(fr["DU"]));
 			
-	if animate_symbols && elementData.get("LP", "") == "LP":
-		symbol_frame = wrapi(elementData.get("FF", 0) + (frame - start_frame), 0, symbol_total_frames);
-	else:
-		symbol_frame = int(elementData.get("FF", 0));
-		
+	var ff = int(elementData.get("FF", 0));
+	match elementData.get("LP", "SF"):
+		"LP":
+			if animate_symbols:
+				symbol_frame = wrapi(ff + (frame - start_frame), 0, symbol_total_frames);
+		"PO":
+			if animate_symbols:
+				symbol_frame = min(ff + (frame - start_frame), int(elementData.get("LF", ff)));
+		"SF":
+			symbol_frame = ff;
+		_:
+			symbol_frame = ff;
+			
 	var symbolLayers = symbolID["TL"].get("L", []).duplicate();
 	symbolLayers.reverse();
 	
 	for i in symbolLayers:
 		for fr in i.get("FR", []):
-			if symbol_frame >= fr["I"] && symbol_frame < fr["I"] + fr["DU"]:
+			var fr_start = int(fr["I"]);
+			var fr_end = fr_start + int(fr["DU"]);
+			
+			if symbol_frame >= fr_start && symbol_frame < fr_end:
 				var newId = 0;
 				
 				for e in fr.get("E", []):
@@ -141,7 +146,7 @@ func draw_symbol(element, layer, index, elementTransform, key = "atlas"):
 					newId += 1;
 					
 func create_sprite(data, keyID, index, spriteTransform):
-	var id = "%s-%s-%d-%d"%[keyID, data["N"], index, spriteZIndex];
+	var id = "%s/%s"%[keyID, data["N"]];
 	
 	var imgId = data["N"];
 	var rect = atlas[imgId]["sprite_rect"];
@@ -160,8 +165,10 @@ func create_sprite(data, keyID, index, spriteTransform):
 	var textureFrame = AtlasTexture.new();
 	textureFrame.atlas = load(spriteStuff["sprite"]);
 	textureFrame.region = rect;
+	textureFrame.region = rect;
 	
 	spr.texture = textureFrame;
+	
 	var trans = Transform2D.IDENTITY;
 	if data.has("M3D"):
 		var m = data["M3D"];
@@ -179,17 +186,13 @@ func create_sprite(data, keyID, index, spriteTransform):
 			Vector2(m[4], m[5])
 		);
 		
-	var finalTrans = spriteTransform*trans;
+	var finalTrans = spriteTransform * trans;
 	
-	#if data.has("TRP"):
-		#var m2 = data["TRP"];
-		#finalTrans.origin += Vector2(m2["x"], m2["y"]);
+	if rotated:
+		var rotatedTransform = Transform2D(deg_to_rad(-90.0),Vector2(0, rect.size.x));
+		finalTrans = finalTrans * rotatedTransform;
 		
 	spr.transform = finalTrans;
-	if rotated:
-		spr.rotation_degrees -= 90;
-		spr.position.y += rect.size.x;
-		
 	spr.z_index = spriteZIndex;
 	spriteZIndex += 1;
 	
