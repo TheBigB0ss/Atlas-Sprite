@@ -21,6 +21,9 @@ var spriteStuff = {};
 @export var start_frame = 0;
 @export var animate_symbols = false;
 
+@export var flip_h = false;
+@export var flip_v = false;
+
 var atlas = {};
 var animationData = {};
 var spriteData = {};
@@ -202,6 +205,9 @@ func _process(delta: float) -> void:
 	
 var timer = 0.0;
 func atlas_process(delta: float) -> void:
+	scale.x = abs(scale.x) * (-1 if flip_h else 1);
+	scale.y = abs(scale.y) * (-1 if flip_v else 1);
+	
 	if animationData.is_empty():
 		return;
 		
