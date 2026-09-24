@@ -51,14 +51,25 @@ var animation = 0:
 var animationList = [];
 
 var symbols_root:Node2D;
+
+var symbol_centered = false;
+var symbol_position = Vector2.ZERO;
+var symbol_offset = Vector2.ZERO;
+
 func reload():
+	symbol_centered = false;
+	symbol_position = Vector2.ZERO;
+	symbol_offset = Vector2.ZERO;
+	
 	total_frames = 0;
 	spriteZIndex = 0;
+	
 	symbols_elements.clear();
 	symbol_data.clear();
 	animationData.clear();
 	spriteData.clear();
 	atlas.clear();
+	
 	animationList.clear();
 	animationList.append("NONE");
 	
@@ -263,9 +274,11 @@ func atlas_process(delta: float) -> void:
 					
 	if centered:
 		center_symbols();
-	elif symbol_centered:
-		symbols_root.position = Vector2.ZERO;
+	else:
+		symbol_position = Vector2.ZERO;
 		symbol_centered = false;
+		
+		set_symbols_position();
 		
 func getJsonData(data):
 	var new_animationFile = FileAccess.open(data, FileAccess.READ);
@@ -293,6 +306,14 @@ func play(anim):
 				frame = k["I"];
 				limit = (k["I"] + k["DU"])-1;
 				
+func set_symbols_position():
+	if is_instance_valid(symbols_root):
+		symbols_root.position = symbol_position + symbol_offset;
+		
+func set_symbol_offset(value):
+	symbol_offset = value;
+	set_symbols_position();
+	
 func _get_property_list():
 	var properties: Array[Dictionary] = [];
 	
@@ -326,7 +347,6 @@ func get_rect():
 			
 	return rect if found else Rect2();
 	
-var symbol_centered = false;
 func center_symbols():
 	if symbol_centered:
 		return;
@@ -353,7 +373,9 @@ func center_symbols():
 			else:
 				rect = rect.expand(j);
 				
-	symbols_root.position = -rect.get_center() if found else Vector2.ZERO;
+	symbol_position = -rect.get_center() if found else Vector2.ZERO;
+	set_symbols_position();
+	
 	symbol_centered = true;
 	
 func get_symbol_info(symbol_name, only_visible = false):
