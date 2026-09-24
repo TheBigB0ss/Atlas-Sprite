@@ -3,6 +3,7 @@ class_name AtlasSprite extends Node2D
 
 var spriteStuff = {};
 
+@export_group("animation path", "")
 @export_dir var path = "":
 	set(value):
 		path = value;
@@ -13,16 +14,23 @@ var spriteStuff = {};
 		};
 		reload();
 		
-@export_range(0.1, 5.0, 0.001) var speed = 1.0;
+@export_group("playback")
 @export var frame = 0;
-@export var playing = true;
 @export var loop = false;
+@export var playing = true;
+@export_range(0.1, 5.0, 0.001) var speed = 1.0;
+
+@export_group("limits")
 @export var limit = 0;
 @export var start_frame = 0;
+
+@export_group("set symbols")
 @export var animate_symbols = false;
 
+@export_group("transform")
 @export var flip_h = false;
 @export var flip_v = false;
+@export var centered = true;
 
 var atlas = {};
 var animationData = {};
@@ -33,6 +41,7 @@ var symbols_elements = {};
 var total_frames = 0;
 var spriteZIndex = 0;
 
+@export_group("set animation")
 var animation = 0:
 	set(value):
 		animation = value;
@@ -41,6 +50,7 @@ var animation = 0:
 			
 var animationList = [];
 
+var symbols_root:Node2D;
 func reload():
 	total_frames = 0;
 	spriteZIndex = 0;
@@ -56,6 +66,10 @@ func reload():
 		i.queue_free();
 		self.remove_child(i);
 		
+	symbols_root = Node2D.new();
+	symbols_root.name = "Symbols";
+	add_child(symbols_root);
+	
 	animationData = getJsonData(spriteStuff["animation"]);
 	spriteData = getJsonData(spriteStuff["spriteMap"]);
 	
@@ -87,7 +101,7 @@ func reload():
 func draw_symbol(element, layer, index, elementTransform, key = "atlas"):
 	var elementData = element.get("SI", element.get("ASI"));
 	var symbolID = symbol_data[elementData["SN"]];
-	var keyID = "%s/%s/%d"%[key, symbolID["SN"], index];
+	var keyID = str(key, "/", symbolID["SN"], "/", layer, "/", index);
 	
 	var trans = Transform2D.IDENTITY;
 	if elementData.has("M3D"):
@@ -150,7 +164,7 @@ func draw_symbol(element, layer, index, elementTransform, key = "atlas"):
 					newId += 1;
 					
 func create_sprite(data, keyID, index, spriteTransform):
-	var id = "%s/%s"%[keyID, data["N"]];
+	var id = "%s-%s-%d-%d"%[keyID, data["N"], index, spriteZIndex];
 	
 	var imgId = data["N"];
 	var rect = atlas[imgId]["sprite_rect"];
@@ -160,15 +174,16 @@ func create_sprite(data, keyID, index, spriteTransform):
 		var symbolSprite = Sprite2D.new();
 		symbolSprite.centered = false;
 		symbolSprite.name = id;
-		add_child(symbolSprite);
+		symbols_root.add_child(symbolSprite);
 		symbols_elements[id] = symbolSprite;
 		
 	var spr = symbols_elements[id];
+	spr.z_as_relative = true;
 	spr.visible = true;
+	spr.z_index = 0;
 	
 	var textureFrame = AtlasTexture.new();
 	textureFrame.atlas = load(spriteStuff["sprite"]);
-	textureFrame.region = rect;
 	textureFrame.region = rect;
 	
 	spr.texture = textureFrame;
@@ -197,7 +212,8 @@ func create_sprite(data, keyID, index, spriteTransform):
 		finalTrans = finalTrans * rotatedTransform;
 		
 	spr.transform = finalTrans;
-	spr.z_index = spriteZIndex;
+	
+	symbols_root.move_child(spr, spriteZIndex);
 	spriteZIndex += 1;
 	
 func _process(delta: float) -> void:
@@ -245,6 +261,12 @@ func atlas_process(delta: float) -> void:
 					draw_symbol(e, i, id, Transform2D.IDENTITY);
 					id += 1;
 					
+	if centered:
+		center_symbols();
+	elif symbol_centered:
+		symbols_root.position = Vector2.ZERO;
+		symbol_centered = false;
+		
 func getJsonData(data):
 	var new_animationFile = FileAccess.open(data, FileAccess.READ);
 	var jsonData = JSON.new();
@@ -303,6 +325,36 @@ func get_rect():
 			rect = rect.merge(local_rect);
 			
 	return rect if found else Rect2();
+	
+var symbol_centered = false;
+func center_symbols():
+	if symbol_centered:
+		return;
+		
+	var rect = Rect2();
+	var found = false;
+	
+	for i in symbols_elements.values():
+		if !i.visible or i.texture == null:
+			continue;
+			
+		var local_rect = i.get_rect();
+		var points = [
+			i.transform * local_rect.position,
+			i.transform * Vector2(local_rect.end.x, local_rect.position.y),
+			i.transform * Vector2(local_rect.position.x, local_rect.end.y),
+			i.transform * local_rect.end
+		];
+		
+		for j in points:
+			if !found:
+				rect = Rect2(j, Vector2.ZERO);
+				found = true;
+			else:
+				rect = rect.expand(j);
+				
+	symbols_root.position = -rect.get_center() if found else Vector2.ZERO;
+	symbol_centered = true;
 	
 func get_symbol_info(symbol_name, only_visible = false):
 	for i in symbols_elements.values():
