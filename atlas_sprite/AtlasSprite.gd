@@ -31,7 +31,11 @@ var spriteStuff = {};
 @export var flip_h = false;
 @export var flip_v = false;
 @export var centered = true;
-
+@export var symbol_offset = Vector2.ZERO:
+	set(value):
+		symbol_offset = value;
+		set_symbols_position();
+		
 var atlas = {};
 var animationData = {};
 var spriteData = {};
@@ -54,7 +58,6 @@ var symbols_root:Node2D;
 
 var symbol_centered = false;
 var symbol_position = Vector2.ZERO;
-var symbol_offset = Vector2.ZERO;
 
 func reload():
 	symbol_centered = false;
