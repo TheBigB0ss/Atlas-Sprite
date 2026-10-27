@@ -1,6 +1,19 @@
 shader_type canvas_item;
 render_mode unshaded;
 
+uniform int color_mode = 0;
+
+uniform float alpha_multiplier = 1.0;
+
+uniform vec4 tint_color : source_color = vec4(1.0);
+uniform float tint_amount = 1.0;
+
+uniform vec4 channel_multiplier = vec4(1.0);
+uniform vec4 channel_offset = vec4(0.0);
+
+uniform vec4 color_multiplier = vec4(1.0);
+uniform vec4 color_offset = vec4(0.0);
+
 uniform int blend_mode = 10;
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_nearest;
 
@@ -65,7 +78,18 @@ vec3 blend_subtract(vec3 s, vec3 b) {
 }
 
 void fragment() {
-	vec4 tex = texture(TEXTURE, UV);
+	vec4 tex = texture(TEXTURE, UV) * COLOR;
+	
+	if (color_mode == 2) {
+		tex.rgb = mix(
+			tex.rgb,
+			tint_color.rgb,
+			clamp(tint_amount, 0.0, 1.0)
+		);
+	}
+	
+	tex = tex * color_multiplier + color_offset;
+	tex = clamp(tex, vec4(0.0), vec4(1.0));
 	
 	if (tex.a <= 0.0) {
 		discard;
@@ -75,51 +99,52 @@ void fragment() {
 	vec3 result = tex.rgb;
 	
 	switch (blend_mode) {
-		case 0: // ADD
+		case 0:
 			result = blend_add(tex.rgb, background);
 			break;
-		case 1: // ALPHA
+		case 1:
 			result = tex.rgb;
 			break;
-		case 2: // DARKEN
+		case 2:
 			result = blend_darken(tex.rgb, background);
 			break;
-		case 3: // DIFFERENCE
+		case 3:
 			result = blend_difference(tex.rgb, background);
 			break;
-		case 4: // ERASE
+		case 4:
 			result = background;
 			break;
-		case 5: // HARD LIGHT
+		case 5:
 			result = blend_hard_light(tex.rgb, background);
 			break;
-		case 6: // INVERT
+		case 6:
 			result = 1.0 - background;
 			break;
-		case 7: // LAYER
+		case 7:
 			result = tex.rgb;
 			break;
-		case 8: // LIGHTEN
+		case 8:
 			result = blend_lighten(tex.rgb, background);
 			break;
-		case 9: // MULTIPLY
+		case 9:
 			result = tex.rgb * background;
 			break;
-		case 10: // NORMAL
+		case 10:
 			result = tex.rgb;
 			break;
-		case 11: // OVERLAY
+		case 11:
 			result = blend_overlay(tex.rgb, background);
 			break;
-		case 12: // SCREEN
+		case 12:
 			result = blend_screen(tex.rgb, background);
 			break;
-		case 13: // SHADER
+		case 13:
 			result = tex.rgb;
 			break;
-		case 14: // SUBTRACT
+		case 14:
 			result = blend_subtract(tex.rgb, background);
 			break;
 	}
+	
 	COLOR = vec4(result, tex.a);
 }
